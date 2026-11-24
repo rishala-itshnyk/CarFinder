@@ -19,7 +19,7 @@ class HomeScreen extends StatelessWidget {
             const Icon(
               Icons.directions_car,
               size: 80,
-              color: Colors.blue,
+              color: Colors.blueAccent,
             ),
             const SizedBox(height: 20),
             const Text(
@@ -33,7 +33,7 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 16),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                backgroundColor: Colors.blueAccent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,

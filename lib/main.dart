@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'car_details_screen.dart';
-import 'home_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/lab4_screen.dart';
 
 void main() {
   runApp(const CarFinderApp());
@@ -26,7 +26,7 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _activeScreenIndex = 0;
+  int _activeScreenIndex = 1;
 
   void _selectScreen(int screenIndex) {
     setState(() {
@@ -40,25 +40,25 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       HomeScreen(
         onNavigateToDetails: () => _selectScreen(1),
       ),
-      const CarDetailsScreen(),
+      const Lab4Screen(),
     ];
 
     final screenTitles = [
       'Пошук авто',
-      'Деталі лота Copart',
+      'Лабораторна №4',
     ];
 
     return Scaffold(
       appBar: AppBar(
         title: Text(screenTitles[_activeScreenIndex]),
         centerTitle: true,
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
       ),
       body: screens[_activeScreenIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _activeScreenIndex,
-        selectedItemColor: Colors.blue,
+        selectedItemColor: Colors.blueAccent,
         onTap: _selectScreen,
         items: const [
           BottomNavigationBarItem(
