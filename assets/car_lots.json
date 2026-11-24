@@ -1,0 +1,37 @@
+[
+  {
+    "id": 101,
+    "title": "Tesla Model 3 Long Range",
+    "price": 9200,
+    "isFavorite": true,
+    "status": "active"
+  },
+  {
+    "id": 102,
+    "title": "BMW M3 Competition G80",
+    "price": 18500,
+    "isFavorite": false,
+    "status": "active"
+  },
+  {
+    "id": 103,
+    "title": "Audi RS6 Avant Quattro",
+    "price": 24000,
+    "isFavorite": true,
+    "status": "sold"
+  },
+  {
+    "id": 104,
+    "title": "Ford Mustang GT 5.0 V8",
+    "price": 11300,
+    "isFavorite": false,
+    "status": "active"
+  },
+  {
+    "id": 105,
+    "title": "Porsche Taycan 4S Electric",
+    "price": 29800,
+    "isFavorite": false,
+    "status": "sold"
+  }
+]

@@ -45,7 +45,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     final screenTitles = [
       'Пошук авто',
-      'Каталог авто (Лаб №6)',
+      'Каталог авто (Лаб №7)',
     ];
 
     return Scaffold(

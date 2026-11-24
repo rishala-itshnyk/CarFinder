@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import '../models/car_lot_model.dart';
 import 'car_lot_screen.dart';
 
@@ -10,43 +13,78 @@ class CarCatalogScreen extends StatefulWidget {
 }
 
 class _CarCatalogScreenState extends State<CarCatalogScreen> {
-  final List<CarLotModel> _carLots = [
-    CarLotModel(
-      id: 101,
-      title: 'Tesla Model 3 Long Range',
-      price: 9200,
-      isFavorite: true,
-      status: LotStatus.active,
-    ),
-    CarLotModel(
-      id: 102,
-      title: 'BMW M3 Competition G80',
-      price: 18500,
-      isFavorite: false,
-      status: LotStatus.active,
-    ),
-    CarLotModel(
-      id: 103,
-      title: 'Audi RS6 Avant Quattro',
-      price: 24000,
-      isFavorite: true,
-      status: LotStatus.sold,
-    ),
-    CarLotModel(
-      id: 104,
-      title: 'Ford Mustang GT 5.0 V8',
-      price: 11300,
-      isFavorite: false,
-      status: LotStatus.active,
-    ),
-    CarLotModel(
-      id: 105,
-      title: 'Porsche Taycan 4S Electric',
-      price: 29800,
-      isFavorite: false,
-      status: LotStatus.sold,
-    ),
-  ];
+  List<CarLotModel> _carLots = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLotsFromJson();
+  }
+
+  Future<void> _loadLotsFromJson() async {
+    try {
+      final rawContent = await rootBundle.loadString('assets/car_lots.json');
+      final parsedJsonList = jsonDecode(rawContent) as List<dynamic>;
+      final loadedLots = parsedJsonList
+          .map((lotMap) => CarLotModel.fromJson(lotMap as Map<String, dynamic>))
+          .toList();
+
+      setState(() {
+        _carLots = loadedLots;
+        _isLoading = false;
+      });
+    } catch (loadError) {
+      setState(() {
+        _carLots = [
+          CarLotModel(
+            id: 101,
+            title: 'Tesla Model 3 Long Range',
+            price: 9200,
+            isFavorite: true,
+            status: LotStatus.active,
+          ),
+          CarLotModel(
+            id: 102,
+            title: 'BMW M3 Competition G80',
+            price: 18500,
+            isFavorite: false,
+            status: LotStatus.active,
+          ),
+          CarLotModel(
+            id: 103,
+            title: 'Audi RS6 Avant Quattro',
+            price: 24000,
+            isFavorite: true,
+            status: LotStatus.sold,
+          ),
+          CarLotModel(
+            id: 104,
+            title: 'Ford Mustang GT 5.0 V8',
+            price: 11300,
+            isFavorite: false,
+            status: LotStatus.active,
+          ),
+          CarLotModel(
+            id: 105,
+            title: 'Porsche Taycan 4S Electric',
+            price: 29800,
+            isFavorite: false,
+            status: LotStatus.sold,
+          ),
+        ];
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveLotsToJson() async {
+    final encodedJson = jsonEncode(_carLots.map((lot) => lot.toJson()).toList());
+    try {
+      final storageFile = File('car_lots_saved.json');
+      await storageFile.writeAsString(encodedJson);
+    } catch (_) {}
+  }
 
   Map<String, int> _calculateSummary() {
     return {
@@ -107,6 +145,7 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                       ),
                     );
                   });
+                  _saveLotsToJson();
                 }
                 Navigator.pop(dialogContext);
               },
@@ -118,9 +157,71 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
     );
   }
 
+  void _editLotDialog(CarLotModel currentLot) {
+    final nameController = TextEditingController(text: currentLot.title);
+    final priceController = TextEditingController(text: currentLot.price.toString());
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Редагувати лот'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Марка та модель',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: priceController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Поточна ставка (\$)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Скасувати'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final editedName = nameController.text.trim();
+                final editedPrice = int.tryParse(priceController.text.trim()) ?? currentLot.price;
+                if (editedName.isNotEmpty) {
+                  setState(() {
+                    currentLot.title = editedName;
+                    currentLot.price = editedPrice;
+                  });
+                  _saveLotsToJson();
+                }
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Зберегти'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final summaryStatistics = _calculateSummary();
+
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
 
     return Scaffold(
       body: Column(
@@ -199,6 +300,7 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                           setState(() {
                             _carLots.removeAt(lotIndex);
                           });
+                          _saveLotsToJson();
                         },
                         child: Card(
                           margin: const EdgeInsets.symmetric(
@@ -219,6 +321,7 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                                 setState(() {
                                   currentLot.isFavorite = !currentLot.isFavorite;
                                 });
+                                _saveLotsToJson();
                               },
                             ),
                             title: Text(
@@ -242,13 +345,23 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                                     : Colors.black54,
                               ),
                             ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              onPressed: () {
-                                setState(() {
-                                  _carLots.removeAt(lotIndex);
-                                });
-                              },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent),
+                                  onPressed: () => _editLotDialog(currentLot),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                  onPressed: () {
+                                    setState(() {
+                                      _carLots.removeAt(lotIndex);
+                                    });
+                                    _saveLotsToJson();
+                                  },
+                                ),
+                              ],
                             ),
                             onTap: () {
                               Navigator.push(
@@ -267,6 +380,7 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                                     ? LotStatus.active
                                     : LotStatus.sold;
                               });
+                              _saveLotsToJson();
                             },
                           ),
                         ),
