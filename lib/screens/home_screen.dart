@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_styles.dart';
 
 class HomeScreen extends StatelessWidget {
   final String username;
@@ -21,31 +23,24 @@ class HomeScreen extends StatelessWidget {
             const Icon(
               Icons.directions_car,
               size: 80,
-              color: Colors.blueAccent,
+              color: AppColors.primary,
             ),
             const SizedBox(height: 16),
             Text(
               'Вітаємо, $username!',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.blueAccent,
-              ),
+              style: AppStyles.title,
             ),
             const SizedBox(height: 8),
             const Text(
               'Сервіс підбору та покупки авто з аукціонів Copart',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.black87,
-              ),
+              style: AppStyles.subtitle,
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -59,7 +54,7 @@ class HomeScreen extends StatelessWidget {
               icon: const Icon(Icons.search),
               label: const Text(
                 'Перейти до каталогу авто',
-                style: TextStyle(fontSize: 16),
+                style: AppStyles.button,
               ),
             ),
           ],

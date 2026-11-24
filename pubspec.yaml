@@ -59,6 +59,13 @@ flutter:
 
   assets:
     - assets/car_lots.json
+    - assets/images/
+    - assets/icons/profile.png
+
+  fonts:
+    - family: CarFinderFont
+      fonts:
+        - asset: assets/fonts/carfinder_font.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:
