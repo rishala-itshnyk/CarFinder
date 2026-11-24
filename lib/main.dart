@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/car_lot_screen.dart';
+import 'screens/car_catalog_screen.dart';
 import 'screens/home_screen.dart';
 
 void main() {
@@ -40,12 +40,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       HomeScreen(
         onNavigateToDetails: () => _selectScreen(1),
       ),
-      const CarLotScreen(),
+      const CarCatalogScreen(),
     ];
 
     final screenTitles = [
       'Пошук авто',
-      'Деталі лота (Лаб №5)',
+      'Каталог авто (Лаб №6)',
     ];
 
     return Scaffold(
