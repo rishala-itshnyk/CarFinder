@@ -1,100 +1,35 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import '../models/car_lot_model.dart';
+import '../theme/app_colors.dart';
 import 'car_lot_screen.dart';
 
-class CarCatalogScreen extends StatefulWidget {
-  const CarCatalogScreen({super.key});
+class CarCatalogScreen extends StatelessWidget {
+  final List<CarLotModel> carLots;
+  final Function(CarLotModel) onToggleFavorite;
+  final Function(CarLotModel) onAddLot;
+  final Function(int) onDeleteLot;
+  final Function(CarLotModel) onEditLot;
+  final Function(CarLotModel) onToggleStatus;
 
-  @override
-  State<CarCatalogScreen> createState() => _CarCatalogScreenState();
-}
-
-class _CarCatalogScreenState extends State<CarCatalogScreen> {
-  List<CarLotModel> _carLots = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadLotsFromJson();
-  }
-
-  Future<void> _loadLotsFromJson() async {
-    try {
-      final rawContent = await rootBundle.loadString('assets/car_lots.json');
-      final parsedJsonList = jsonDecode(rawContent) as List<dynamic>;
-      final loadedLots = parsedJsonList
-          .map((lotMap) => CarLotModel.fromJson(lotMap as Map<String, dynamic>))
-          .toList();
-
-      setState(() {
-        _carLots = loadedLots;
-        _isLoading = false;
-      });
-    } catch (loadError) {
-      setState(() {
-        _carLots = [
-          CarLotModel(
-            id: 101,
-            title: 'Tesla Model 3 Long Range',
-            price: 9200,
-            isFavorite: true,
-            status: LotStatus.active,
-          ),
-          CarLotModel(
-            id: 102,
-            title: 'BMW M3 Competition G80',
-            price: 18500,
-            isFavorite: false,
-            status: LotStatus.active,
-          ),
-          CarLotModel(
-            id: 103,
-            title: 'Audi RS6 Avant Quattro',
-            price: 24000,
-            isFavorite: true,
-            status: LotStatus.sold,
-          ),
-          CarLotModel(
-            id: 104,
-            title: 'Ford Mustang GT 5.0 V8',
-            price: 11300,
-            isFavorite: false,
-            status: LotStatus.active,
-          ),
-          CarLotModel(
-            id: 105,
-            title: 'Porsche Taycan 4S Electric',
-            price: 29800,
-            isFavorite: false,
-            status: LotStatus.sold,
-          ),
-        ];
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _saveLotsToJson() async {
-    final encodedJson = jsonEncode(_carLots.map((lot) => lot.toJson()).toList());
-    try {
-      final storageFile = File('car_lots_saved.json');
-      await storageFile.writeAsString(encodedJson);
-    } catch (_) {}
-  }
+  const CarCatalogScreen({
+    super.key,
+    required this.carLots,
+    required this.onToggleFavorite,
+    required this.onAddLot,
+    required this.onDeleteLot,
+    required this.onEditLot,
+    required this.onToggleStatus,
+  });
 
   Map<String, int> _calculateSummary() {
     return {
-      'total': _carLots.length,
-      'favorites': _carLots.where((lot) => lot.isFavorite).length,
-      'sold': _carLots.where((lot) => lot.status == LotStatus.sold).length,
+      'total': carLots.length,
+      'favorites': carLots.where((lot) => lot.isFavorite).length,
+      'sold': carLots.where((lot) => lot.status == LotStatus.sold).length,
     };
   }
 
-  void _addNewLotDialog() {
+  void _addNewLotDialog(BuildContext context) {
     final nameController = TextEditingController();
     final priceController = TextEditingController();
 
@@ -134,18 +69,15 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                 final enteredName = nameController.text.trim();
                 final enteredPrice = int.tryParse(priceController.text.trim()) ?? 5000;
                 if (enteredName.isNotEmpty) {
-                  setState(() {
-                    _carLots.add(
-                      CarLotModel(
-                        id: DateTime.now().millisecondsSinceEpoch,
-                        title: enteredName,
-                        price: enteredPrice,
-                        isFavorite: false,
-                        status: LotStatus.active,
-                      ),
-                    );
-                  });
-                  _saveLotsToJson();
+                  onAddLot(
+                    CarLotModel(
+                      id: DateTime.now().millisecondsSinceEpoch,
+                      title: enteredName,
+                      price: enteredPrice,
+                      isFavorite: false,
+                      status: LotStatus.active,
+                    ),
+                  );
                 }
                 Navigator.pop(dialogContext);
               },
@@ -157,7 +89,7 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
     );
   }
 
-  void _editLotDialog(CarLotModel currentLot) {
+  void _editLotDialog(BuildContext context, CarLotModel currentLot) {
     final nameController = TextEditingController(text: currentLot.title);
     final priceController = TextEditingController(text: currentLot.price.toString());
 
@@ -197,11 +129,9 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                 final editedName = nameController.text.trim();
                 final editedPrice = int.tryParse(priceController.text.trim()) ?? currentLot.price;
                 if (editedName.isNotEmpty) {
-                  setState(() {
-                    currentLot.title = editedName;
-                    currentLot.price = editedPrice;
-                  });
-                  _saveLotsToJson();
+                  currentLot.title = editedName;
+                  currentLot.price = editedPrice;
+                  onEditLot(currentLot);
                 }
                 Navigator.pop(dialogContext);
               },
@@ -217,20 +147,14 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
   Widget build(BuildContext context) {
     final summaryStatistics = _calculateSummary();
 
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
     return Scaffold(
       body: Column(
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              border: Border(bottom: BorderSide(color: Colors.blue.shade100)),
+              color: AppColors.primary.withOpacity(0.08),
+              border: Border(bottom: BorderSide(color: AppColors.primary.withOpacity(0.2))),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -242,7 +166,7 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blueAccent,
+                        color: AppColors.primary,
                       ),
                     ),
                     const Text('Всього лотів', style: TextStyle(fontSize: 12)),
@@ -255,7 +179,7 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.redAccent,
+                        color: AppColors.error,
                       ),
                     ),
                     const Text('В обраному', style: TextStyle(fontSize: 12)),
@@ -268,7 +192,7 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.green,
+                        color: AppColors.success,
                       ),
                     ),
                     const Text('Викуплено', style: TextStyle(fontSize: 12)),
@@ -278,14 +202,14 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
             ),
           ),
           Expanded(
-            child: _carLots.isEmpty
+            child: carLots.isEmpty
                 ? const Center(
                     child: Text('Список порожній. Додайте нове авто!'),
                   )
                 : ListView.builder(
-                    itemCount: _carLots.length,
+                    itemCount: carLots.length,
                     itemBuilder: (builderContext, lotIndex) {
-                      final currentLot = _carLots[lotIndex];
+                      final currentLot = carLots[lotIndex];
 
                       return Dismissible(
                         key: ValueKey(currentLot.id),
@@ -293,14 +217,11 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                         background: Container(
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.only(right: 20),
-                          color: Colors.redAccent,
+                          color: AppColors.error,
                           child: const Icon(Icons.delete, color: Colors.white),
                         ),
                         onDismissed: (direction) {
-                          setState(() {
-                            _carLots.removeAt(lotIndex);
-                          });
-                          _saveLotsToJson();
+                          onDeleteLot(lotIndex);
                         },
                         child: Card(
                           margin: const EdgeInsets.symmetric(
@@ -314,14 +235,11 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                                     ? Icons.favorite
                                     : Icons.favorite_border,
                                 color: currentLot.isFavorite
-                                    ? Colors.redAccent
-                                    : Colors.grey,
+                                    ? AppColors.error
+                                    : AppColors.grey,
                               ),
                               onPressed: () {
-                                setState(() {
-                                  currentLot.isFavorite = !currentLot.isFavorite;
-                                });
-                                _saveLotsToJson();
+                                onToggleFavorite(currentLot);
                               },
                             ),
                             title: Text(
@@ -333,7 +251,7 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                                     : null,
                                 color: currentLot.status == LotStatus.sold
                                     ? Colors.grey.shade600
-                                    : Colors.black87,
+                                    : null,
                               ),
                             ),
                             subtitle: Text(
@@ -341,25 +259,20 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: currentLot.status == LotStatus.sold
-                                    ? Colors.green.shade700
-                                    : Colors.black54,
+                                    ? AppColors.success
+                                    : null,
                               ),
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent),
-                                  onPressed: () => _editLotDialog(currentLot),
+                                  icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+                                  onPressed: () => _editLotDialog(context, currentLot),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                  onPressed: () {
-                                    setState(() {
-                                      _carLots.removeAt(lotIndex);
-                                    });
-                                    _saveLotsToJson();
-                                  },
+                                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                                  onPressed: () => onDeleteLot(lotIndex),
                                 ),
                               ],
                             ),
@@ -375,12 +288,7 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
                               );
                             },
                             onLongPress: () {
-                              setState(() {
-                                currentLot.status = currentLot.status == LotStatus.sold
-                                    ? LotStatus.active
-                                    : LotStatus.sold;
-                              });
-                              _saveLotsToJson();
+                              onToggleStatus(currentLot);
                             },
                           ),
                         ),
@@ -391,8 +299,8 @@ class _CarCatalogScreenState extends State<CarCatalogScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.blueAccent,
-        onPressed: _addNewLotDialog,
+        backgroundColor: AppColors.primary,
+        onPressed: () => _addNewLotDialog(context),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );

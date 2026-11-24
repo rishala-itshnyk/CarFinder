@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../main.dart';
+import '../services/app_storage_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -29,9 +30,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _submitRegistration() {
+  void _submitRegistration() async {
     if (_formKey.currentState!.validate()) {
       final registeredName = _userNameController.text.trim();
+      final registeredEmail = _emailAddressController.text.trim();
+      final registeredPassword = _secretWordController.text.trim();
+
+      await AppStorageService.saveUserProfile(
+        name: registeredName,
+        email: registeredEmail,
+        password: registeredPassword,
+      );
+
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/app_storage_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_styles.dart';
 import 'register_screen.dart';
@@ -21,6 +22,22 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String _currentAvatarPath = 'assets/images/avatar.png';
+  String _profileEmail = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileDetails();
+  }
+
+  Future<void> _loadProfileDetails() async {
+    final loadedProfile = await AppStorageService.loadUserProfile();
+    if (mounted) {
+      setState(() {
+        _profileEmail = loadedProfile['email'] ?? '';
+      });
+    }
+  }
 
   void _openGalleryPicker() {
     final avatarChoices = [
@@ -116,6 +133,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final displayedEmail = _profileEmail.isNotEmpty
+        ? _profileEmail
+        : '${widget.username}@carfinder.ua';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
       child: Column(
@@ -160,7 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            '${widget.username}@carfinder.ua',
+            displayedEmail,
             style: AppStyles.subtitle,
           ),
           const SizedBox(height: 10),
@@ -247,7 +268,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: () {
+            onPressed: () async {
+              await AppStorageService.clearUserProfile();
+              if (!context.mounted) return;
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
