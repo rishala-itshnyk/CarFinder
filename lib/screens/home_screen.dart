@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatelessWidget {
+  final String username;
   final VoidCallback onNavigateToDetails;
 
   const HomeScreen({
     super.key,
+    required this.username,
     required this.onNavigateToDetails,
   });
 
@@ -21,16 +23,26 @@ class HomeScreen extends StatelessWidget {
               size: 80,
               color: Colors.blueAccent,
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Сервіс підбору авто з аукціонів США',
+            const SizedBox(height: 16),
+            Text(
+              'Вітаємо, $username!',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
+              style: const TextStyle(
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
+                color: Colors.blueAccent,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            const Text(
+              'Сервіс підбору та покупки авто з аукціонів Copart',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 24),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blueAccent,
@@ -46,7 +58,7 @@ class HomeScreen extends StatelessWidget {
               onPressed: onNavigateToDetails,
               icon: const Icon(Icons.search),
               label: const Text(
-                'Знайти авто на Copart',
+                'Перейти до каталогу авто',
                 style: TextStyle(fontSize: 16),
               ),
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/car_catalog_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/register_screen.dart';
 
 void main() {
   runApp(const CarFinderApp());
@@ -13,20 +14,25 @@ class CarFinderApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: MainNavigationScreen(),
+      home: RegisterScreen(),
     );
   }
 }
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+  final String username;
+
+  const MainNavigationScreen({
+    super.key,
+    this.username = 'Гість',
+  });
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _activeScreenIndex = 1;
+  int _activeScreenIndex = 0;
 
   void _selectScreen(int screenIndex) {
     setState(() {
@@ -38,14 +44,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final screens = [
       HomeScreen(
+        username: widget.username,
         onNavigateToDetails: () => _selectScreen(1),
       ),
       const CarCatalogScreen(),
     ];
 
     final screenTitles = [
-      'Пошук авто',
-      'Каталог авто (Лаб №7)',
+      'Головна',
+      'Каталог авто (Copart)',
     ];
 
     return Scaffold(
@@ -54,6 +61,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         centerTitle: true,
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Вийти',
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (logoutContext) => const RegisterScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: screens[_activeScreenIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -62,8 +83,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         onTap: _selectScreen,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Пошук',
+            icon: Icon(Icons.home),
+            label: 'Головна',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.directions_car),
