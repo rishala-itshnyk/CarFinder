@@ -48,4 +48,20 @@ class NativeDeviceService {
 
     return null;
   }
+
+  static Future<Map<String, String>> fetchCurrentWebDetails() async {
+    try {
+      final detailsMap = await _bridgeChannel.invokeMethod<Map<dynamic, dynamic>>('getWebViewDetails');
+      if (detailsMap != null) {
+        return {
+          'address': (detailsMap['address'] as String?) ?? '',
+          'heading': (detailsMap['heading'] as String?) ?? '',
+        };
+      }
+    } catch (_) {}
+    return {
+      'address': '',
+      'heading': '',
+    };
+  }
 }

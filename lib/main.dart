@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'models/car_lot_model.dart';
 import 'screens/login_screen.dart';
@@ -107,34 +106,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Widget
   int _activeScreenIndex = 0;
   List<CarLotModel> _carLots = [];
   bool _isLoading = true;
-  Timer? _sessionTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AppStorageService.clearExitTimestamp();
     _loadLots();
-    _startSessionTimer();
-  }
-
-  void _startSessionTimer() {
-    _sessionTimer?.cancel();
-    _sessionTimer = Timer(const Duration(minutes: 1), _handleSessionTimeout);
-  }
-
-  void _handleSessionTimeout() async {
-    await AppStorageService.clearUserProfile();
-    if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
-    if (lifecycleState == AppLifecycleState.resumed) {
+    if (lifecycleState == AppLifecycleState.paused || lifecycleState == AppLifecycleState.inactive) {
+      AppStorageService.recordExitTimestamp();
+    } else if (lifecycleState == AppLifecycleState.resumed) {
       _checkSessionFreshness();
     }
   }
@@ -142,14 +127,21 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> with Widget
   Future<void> _checkSessionFreshness() async {
     final active = await AppStorageService.isSessionActive();
     if (!active) {
-      _handleSessionTimeout();
+      await AppStorageService.clearUserProfile();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    } else {
+      await AppStorageService.clearExitTimestamp();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _sessionTimer?.cancel();
     super.dispose();
   }
 

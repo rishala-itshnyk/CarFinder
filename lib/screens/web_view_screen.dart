@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../models/car_lot_model.dart';
 import '../services/app_storage_service.dart';
 import '../services/native_device_service.dart';
 import '../theme/app_colors.dart';
@@ -33,9 +34,13 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
   Future<void> _checkInitialFavorite() async {
     final savedFavorites = await AppStorageService.loadFavoriteIdentities();
+    final webDetails = await NativeDeviceService.fetchCurrentWebDetails();
+    final pageAddress = webDetails['address'] ?? '';
+    final lotMatch = RegExp(r'/lot/(\d+)').firstMatch(pageAddress);
+    final lotIdString = lotMatch != null ? lotMatch.group(1)! : '';
     if (mounted) {
       setState(() {
-        _isSaved = savedFavorites.contains(widget.siteName);
+        _isSaved = savedFavorites.contains(lotIdString);
       });
     }
   }
@@ -50,32 +55,105 @@ class _WebViewScreenState extends State<WebViewScreen> {
   }
 
   Future<void> _toggleFavorite() async {
+    final webDetails = await NativeDeviceService.fetchCurrentWebDetails();
+    final pageAddress = webDetails['address'] ?? '';
+    final pageHeading = webDetails['heading'] ?? '';
+
+    final isCopartLot = pageAddress.toLowerCase().contains('/lot/');
+
+    if (!isCopartLot) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Помилка: зберегти можна лише відкриту сторінку конкретного авто (лот Copart)!'),
+          backgroundColor: AppColors.error,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final lotMatch = RegExp(r'/lot/(\d+)').firstMatch(pageAddress);
+    final lotIdString = lotMatch != null ? lotMatch.group(1)! : '';
+    final lotIdentity = int.tryParse(lotIdString) ?? (DateTime.now().millisecondsSinceEpoch % 1000000);
+
+    String cleanCarTitle = pageHeading;
+    if (cleanCarTitle.contains(' for Auction')) {
+      cleanCarTitle = cleanCarTitle.split(' for Auction').first.trim();
+    } else if (cleanCarTitle.contains(' at Copart')) {
+      cleanCarTitle = cleanCarTitle.split(' at Copart').first.trim();
+    } else if (cleanCarTitle.contains(' - Copart')) {
+      cleanCarTitle = cleanCarTitle.split(' - Copart').first.trim();
+    }
+    if (cleanCarTitle.isEmpty || cleanCarTitle.toLowerCase() == 'copart') {
+      final slugSegments = pageAddress.split('/lot/$lotIdString/');
+      if (slugSegments.length > 1 && slugSegments[1].isNotEmpty) {
+        cleanCarTitle = slugSegments[1]
+            .split('?').first
+            .replaceAll('-', ' ')
+            .split('/')
+            .first
+            .trim();
+      } else {
+        cleanCarTitle = 'Copart Lot $lotIdString';
+      }
+    }
+
+    final carLotsList = await AppStorageService.loadCarLotsList();
     final savedFavorites = await AppStorageService.loadFavoriteIdentities();
+    final finalLotKey = lotIdentity.toString();
+
+    final lotIndex = carLotsList.indexWhere((lot) => lot.id == lotIdentity);
+
     setState(() {
       _isSaved = !_isSaved;
     });
 
     if (_isSaved) {
-      if (!savedFavorites.contains(widget.siteName)) {
-        savedFavorites.add(widget.siteName);
+      if (lotIndex >= 0) {
+        carLotsList[lotIndex].isFavorite = true;
+      } else {
+        carLotsList.add(
+          CarLotModel(
+            id: lotIdentity,
+            title: cleanCarTitle,
+            price: 0,
+            isFavorite: true,
+            status: LotStatus.active,
+            auction: 'Copart',
+          ),
+        );
       }
-    } else {
-      savedFavorites.remove(widget.siteName);
-    }
+      if (!savedFavorites.contains(finalLotKey)) {
+        savedFavorites.add(finalLotKey);
+      }
+      await AppStorageService.saveCarLotsList(carLotsList);
+      await AppStorageService.saveFavoriteIdentities(savedFavorites);
 
-    await AppStorageService.saveFavoriteIdentities(savedFavorites);
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _isSaved
-              ? 'Сайт "${widget.siteName}" збережено в обране!'
-              : 'Сайт "${widget.siteName}" вилучено з обраного',
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Авто "$cleanCarTitle" (#$lotIdentity) збережено в список!'),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 2),
         ),
-        duration: const Duration(seconds: 1),
-      ),
-    );
+      );
+    } else {
+      if (lotIndex >= 0) {
+        carLotsList[lotIndex].isFavorite = false;
+      }
+      savedFavorites.remove(finalLotKey);
+      await AppStorageService.saveCarLotsList(carLotsList);
+      await AppStorageService.saveFavoriteIdentities(savedFavorites);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Авто "$cleanCarTitle" вилучено зі збережених'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   @override

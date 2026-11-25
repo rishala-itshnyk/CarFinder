@@ -16,7 +16,7 @@ import io.flutter.plugin.platform.PlatformView
 import io.flutter.plugin.platform.PlatformViewFactory
 
 class NativePlatformWebView(context: Context, viewIdentifier: Int, creationParameters: Map<String?, Any?>?) : PlatformView {
-    private val browserEngine: WebView = WebView(context).apply {
+    val browserEngine: WebView = WebView(context).apply {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.loadWithOverviewMode = true
@@ -38,6 +38,9 @@ class NativePlatformWebView(context: Context, viewIdentifier: Int, creationParam
     override fun getView(): View = browserEngine
 
     override fun dispose() {
+        if (MainActivity.activePlatformWebView == this) {
+            MainActivity.activePlatformWebView = null
+        }
         browserEngine.destroy()
     }
 }
@@ -45,11 +48,17 @@ class NativePlatformWebView(context: Context, viewIdentifier: Int, creationParam
 class NativePlatformWebViewFactory : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
     override fun create(context: Context, viewIdentifier: Int, args: Any?): PlatformView {
         val parametersMap = args as? Map<String?, Any?>
-        return NativePlatformWebView(context, viewIdentifier, parametersMap)
+        val createdWebView = NativePlatformWebView(context, viewIdentifier, parametersMap)
+        MainActivity.activePlatformWebView = createdWebView
+        return createdWebView
     }
 }
 
 class MainActivity : FlutterActivity() {
+    companion object {
+        var activePlatformWebView: NativePlatformWebView? = null
+    }
+
     private val channelName = "carfinder/native_bridge"
     private var callbackChannelResult: MethodChannel.Result? = null
 
@@ -94,6 +103,15 @@ class MainActivity : FlutterActivity() {
                     val preferencesStorage = getSharedPreferences("carfinder_prefs", Context.MODE_PRIVATE)
                     val payloadJson = preferencesStorage.getString("storage_payload", "{}") ?: "{}"
                     result.success(payloadJson)
+                }
+                "getWebViewDetails" -> {
+                    val activeEngine = activePlatformWebView?.browserEngine
+                    val pageAddress = activeEngine?.url ?: ""
+                    val pageHeading = activeEngine?.title ?: ""
+                    result.success(mapOf(
+                        "address" to pageAddress,
+                        "heading" to pageHeading
+                    ))
                 }
                 else -> result.notImplemented()
             }

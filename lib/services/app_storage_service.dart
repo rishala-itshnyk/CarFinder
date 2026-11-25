@@ -62,18 +62,38 @@ class AppStorageService {
     storageMap['name'] = name;
     storageMap['email'] = email;
     storageMap['password'] = password;
-    storageMap['login_timestamp'] = DateTime.now().millisecondsSinceEpoch;
+    storageMap['last_active_timestamp'] = DateTime.now().millisecondsSinceEpoch;
+    storageMap.remove('exit_timestamp');
     if (phone != null) storageMap['phone'] = phone;
     if (city != null) storageMap['city'] = city;
     await _writeStorageMap(storageMap);
   }
 
+  static Future<void> recordExitTimestamp() async {
+    final storageMap = await _readStorageMap();
+    storageMap['exit_timestamp'] = DateTime.now().millisecondsSinceEpoch;
+    await _writeStorageMap(storageMap);
+  }
+
+  static Future<void> clearExitTimestamp() async {
+    final storageMap = await _readStorageMap();
+    storageMap.remove('exit_timestamp');
+    await _writeStorageMap(storageMap);
+  }
+
   static Future<bool> isSessionActive() async {
     final storageMap = await _readStorageMap();
-    final loginTime = storageMap['login_timestamp'] as int?;
-    if (loginTime == null) return false;
-    final elapsedDuration = DateTime.now().millisecondsSinceEpoch - loginTime;
-    return elapsedDuration < 60000;
+    final profileName = (storageMap['name'] as String?) ?? '';
+    if (profileName.isEmpty) return false;
+
+    final exitTime = storageMap['exit_timestamp'] as int?;
+    if (exitTime != null) {
+      final elapsedSinceExit = DateTime.now().millisecondsSinceEpoch - exitTime;
+      if (elapsedSinceExit > 60000) {
+        return false;
+      }
+    }
+    return true;
   }
 
   static Future<Map<String, String>> loadUserProfile() async {
@@ -95,6 +115,8 @@ class AppStorageService {
     storageMap.remove('phone');
     storageMap.remove('city');
     storageMap.remove('login_timestamp');
+    storageMap.remove('last_active_timestamp');
+    storageMap.remove('exit_timestamp');
     await _writeStorageMap(storageMap);
   }
 

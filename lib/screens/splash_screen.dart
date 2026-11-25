@@ -25,6 +25,7 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (sessionActive && savedName.isNotEmpty) {
+      await AppStorageService.clearExitTimestamp();
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
