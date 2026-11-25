@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../widgets/bottom_image.dart';
-import '../widgets/feature_card.dart';
-import '../widgets/header_block.dart';
+import '../services/app_storage_service.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_styles.dart';
 
 class CarLotScreen extends StatefulWidget {
   final String carTitle;
@@ -9,8 +9,8 @@ class CarLotScreen extends StatefulWidget {
 
   const CarLotScreen({
     super.key,
-    this.carTitle = 'Tesla Model 3 Long Range',
-    this.initialPrice = 9200,
+    this.carTitle = '2021 TESLA MODEL 3',
+    this.initialPrice = 8100,
   });
 
   @override
@@ -18,166 +18,308 @@ class CarLotScreen extends StatefulWidget {
 }
 
 class _CarLotScreenState extends State<CarLotScreen> {
-  bool _isFavorite = false;
-  late int _bidCounter;
-  String _buyerNote = '';
-  bool _includeDelivery = false;
+  int _currentImageIndex = 0;
+  late int _bidAmount;
+  bool _isSaved = false;
+
+  final List<String> _carPhotos = [
+    'https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=1000&q=80',
+    'https://images.unsplash.com/photo-1566939901549-47e37fad4f9a?auto=format&fit=crop&w=1000&q=80',
+    'https://images.unsplash.com/photo-1572191267337-c1705e46645c?auto=format&fit=crop&w=1000&q=80',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _bidCounter = 12;
+    _bidAmount = widget.initialPrice;
+    _checkSavedStatus();
+  }
+
+  Future<void> _checkSavedStatus() async {
+    final savedIds = await AppStorageService.loadFavoriteIdentities();
+    if (mounted) {
+      setState(() {
+        _isSaved = savedIds.contains('101');
+      });
+    }
+  }
+
+  Future<void> _toggleSave() async {
+    final savedIds = await AppStorageService.loadFavoriteIdentities();
+    setState(() {
+      _isSaved = !_isSaved;
+    });
+
+    if (_isSaved) {
+      if (!savedIds.contains('101')) savedIds.add('101');
+    } else {
+      savedIds.remove('101');
+    }
+
+    await AppStorageService.saveFavoriteIdentities(savedIds);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_isSaved ? 'Лот збережено в обране!' : 'Лот вилучено з обраного'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  Widget _buildSpecLine(String title, String valueText) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontFamily: 'CarFinderFont',
+              fontSize: 12,
+              color: Colors.white70,
+            ),
+          ),
+          Text(
+            valueText,
+            style: const TextStyle(
+              fontFamily: 'CarFinderFont',
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF161616),
       appBar: AppBar(
-        title: const Text('Деталі лота Copart'),
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: const Color(0xFF1E1E1E),
         foregroundColor: Colors.white,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left, size: 20),
+              onPressed: () {
+                setState(() {
+                  _currentImageIndex = (_currentImageIndex - 1 + _carPhotos.length) % _carPhotos.length;
+                });
+              },
+            ),
+            const Text(
+              '7 of 1,795',
+              style: TextStyle(
+                fontFamily: 'CarFinderFont',
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right, size: 20),
+              onPressed: () {
+                setState(() {
+                  _currentImageIndex = (_currentImageIndex + 1) % _carPhotos.length;
+                });
+              },
+            ),
+          ],
+        ),
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: HeaderBlock(
-                      title: widget.carTitle,
-                      description: 'Аукціон Copart #54219802 | Run & Drive',
-                    ),
-                  ),
-                  IconButton(
-                    iconSize: 32,
-                    icon: Icon(
-                      _isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: _isFavorite ? Colors.redAccent : Colors.grey,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isFavorite = !_isFavorite;
-                      });
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  height: 220,
+                  width: double.infinity,
+                  color: Colors.black,
+                  child: Image.network(
+                    _carPhotos[_currentImageIndex],
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, errorObject, stackTrace) {
+                      return Container(
+                        color: Colors.blueGrey.shade900,
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.directions_car, size: 80, color: Colors.white38),
+                      );
                     },
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade200),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.gavel, color: Colors.blueAccent),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Поточна ставка: \$${widget.initialPrice} (ставок: $_bidCounter)',
+                Positioned(
+                  left: 8,
+                  child: CircleAvatar(
+                    backgroundColor: Colors.black54,
+                    radius: 18,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios, size: 14, color: Colors.white),
+                      onPressed: () {
+                        setState(() {
+                          _currentImageIndex = (_currentImageIndex - 1 + _carPhotos.length) % _carPhotos.length;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 8,
+                  child: CircleAvatar(
+                    backgroundColor: Colors.black54,
+                    radius: 18,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white),
+                      onPressed: () {
+                        setState(() {
+                          _currentImageIndex = (_currentImageIndex + 1) % _carPhotos.length;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              color: Colors.black,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(_carPhotos.length, (photoIndex) {
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: 48,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _currentImageIndex == photoIndex ? AppColors.copartBlue : Colors.grey,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.network(
+                      _carPhotos[photoIndex],
+                      fit: BoxFit.cover,
+                    ),
+                  );
+                }),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        widget.carTitle,
                         style: const TextStyle(
-                          fontSize: 15,
+                          fontFamily: 'CarFinderFont',
+                          color: AppColors.copartBlue,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                      IconButton(
+                        icon: Icon(
+                          _isSaved ? Icons.favorite : Icons.favorite_border,
+                          color: _isSaved ? AppColors.error : Colors.white70,
                         ),
+                        onPressed: _toggleSave,
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _bidCounter++;
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Ставку підвищено! Загалом ставок: $_bidCounter'),
-                            duration: const Duration(seconds: 1),
-                          ),
-                        );
-                      },
-                      child: const Text('+ \$100'),
+                    ],
+                  ),
+                  const Text(
+                    'Lot # 59172804 | COPART',
+                    style: TextStyle(
+                      fontFamily: 'CarFinderFont',
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E1E),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildSpecLine('Sale Date:', '11/11/2024'),
+                        _buildSpecLine('Sale Time:', '11:00 PM EET'),
+                        _buildSpecLine('Est. Retail Value:', '\$27,807.52'),
+                        _buildSpecLine('Odometer:', '52,451 mi (ACTUAL)'),
+                        _buildSpecLine('Damage:', 'Front End'),
+                        _buildSpecLine('Status:', 'Run & Drive'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        color: const Color(0xFF1E1E1E),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: SafeArea(
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Current Bid:',
+                      style: TextStyle(
+                        fontFamily: 'CarFinderFont',
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      '\$$_bidAmount',
+                      style: const TextStyle(
+                        fontFamily: 'CarFinderFont',
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text(
-                  'Доставка в порт (Одеса / Клайпеда)',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  _includeDelivery
-                      ? 'Вартість доставки: + \$1,850 | Термін: 35 днів'
-                      : 'Самовивіз з майданчика Copart у США',
-                  style: TextStyle(
-                    color: _includeDelivery ? Colors.green.shade700 : Colors.grey.shade600,
-                    fontWeight: _includeDelivery ? FontWeight.bold : FontWeight.normal,
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.copartBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                secondary: Icon(
-                  Icons.local_shipping,
-                  color: _includeDelivery ? Colors.green : Colors.grey,
-                ),
-                activeColor: Colors.blueAccent,
-                value: _includeDelivery,
-                onChanged: (deliverySelected) {
-                  setState(() {
-                    _includeDelivery = deliverySelected;
-                  });
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Коментар покупця або VIN-запит',
-                  hintText: 'Наприклад: Перевірити стан батареї',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.edit_note),
-                ),
-                onChanged: (enteredText) {
-                  setState(() {
-                    _buyerNote = enteredText;
-                  });
-                },
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                onPressed: _toggleSave,
                 child: Text(
-                  _buyerNote.isEmpty
-                      ? 'Введіть коментар вище для попереднього перегляду'
-                      : 'Ваш запит: $_buyerNote',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: _buyerNote.isEmpty ? Colors.grey.shade500 : Colors.black87,
+                  _isSaved ? 'ЗБЕРЕЖЕНО' : 'ЗБЕРЕГТИ',
+                  style: const TextStyle(
+                    fontFamily: 'CarFinderFont',
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              const FeatureCard(
-                icon: Icons.car_crash_outlined,
-                title: 'Лобове пошкодження (Front End)',
-                subtitle: 'Бампер та капот пошкоджені. Батарея та геометрія цілі.',
-              ),
-              const SizedBox(height: 12),
-              const BottomImage(
-                imageUrl: 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=1000&q=80',
               ),
             ],
           ),

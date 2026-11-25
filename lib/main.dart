@@ -1,12 +1,10 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'models/car_lot_model.dart';
-import 'screens/car_catalog_screen.dart';
-import 'screens/favorites_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/profile_screen.dart';
-import 'screens/register_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/main_catalog_screen.dart';
+import 'screens/saved_list_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/app_storage_service.dart';
 import 'theme/app_colors.dart';
 
@@ -17,86 +15,78 @@ void main() {
 class CarFinderApp extends StatefulWidget {
   const CarFinderApp({super.key});
 
+  static _CarFinderAppState? of(BuildContext context) =>
+      context.findAncestorStateOfType<_CarFinderAppState>();
+
   @override
   State<CarFinderApp> createState() => _CarFinderAppState();
 }
 
 class _CarFinderAppState extends State<CarFinderApp> {
-  bool _isDarkMode = false;
-  String _savedUsername = '';
-  bool _isCheckingStorage = true;
+  bool isDarkMode = true;
 
   @override
   void initState() {
     super.initState();
-    _checkSavedUser();
+    _loadSavedTheme();
   }
 
-  Future<void> _checkSavedUser() async {
-    final profile = await AppStorageService.loadUserProfile();
-    final name = profile['name'] ?? '';
-    setState(() {
-      _savedUsername = name;
-      _isCheckingStorage = false;
-    });
+  Future<void> _loadSavedTheme() async {
+    final savedMode = await AppStorageService.loadThemeMode();
+    if (mounted) {
+      setState(() {
+        isDarkMode = savedMode;
+      });
+    }
   }
 
-  void _toggleTheme(bool themeEnabled) {
+  void toggleTheme(bool themeEnabled) async {
     setState(() {
-      _isDarkMode = themeEnabled;
+      isDarkMode = themeEnabled;
     });
+    await AppStorageService.saveThemeMode(themeEnabled);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isCheckingStorage) {
-      return const MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(),
-          ),
-        ),
-      );
-    }
-
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData(
         brightness: Brightness.light,
         scaffoldBackgroundColor: AppColors.lightBackground,
-        primaryColor: AppColors.primary,
+        primaryColor: AppColors.copartBlue,
         fontFamily: 'CarFinderFont',
         appBarTheme: const AppBarTheme(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 0,
           centerTitle: true,
         ),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
+          seedColor: AppColors.copartBlue,
           brightness: Brightness.light,
         ),
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: AppColors.darkBackground,
-        primaryColor: AppColors.secondary,
+        scaffoldBackgroundColor: Colors.black,
+        primaryColor: AppColors.copartBlue,
         fontFamily: 'CarFinderFont',
         appBarTheme: const AppBarTheme(
-          backgroundColor: AppColors.cardDark,
+          backgroundColor: Colors.black,
           foregroundColor: Colors.white,
+          elevation: 0,
           centerTitle: true,
         ),
-        cardColor: AppColors.cardDark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.secondary,
-          brightness: Brightness.dark,
+        cardColor: const Color(0xFF1E1E1E),
+        colorScheme: const ColorScheme.dark(
+          primary: AppColors.copartBlue,
+          surface: Color(0xFF1E1E1E),
+          onSurface: Colors.white,
         ),
       ),
-      home: _savedUsername.isNotEmpty
-          ? MainNavigationScreen(username: _savedUsername)
-          : const RegisterScreen(),
+      home: const SplashScreen(),
     );
   }
 }
@@ -113,65 +103,58 @@ class MainNavigationScreen extends StatefulWidget {
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
+class _MainNavigationScreenState extends State<MainNavigationScreen> with WidgetsBindingObserver {
   int _activeScreenIndex = 0;
   List<CarLotModel> _carLots = [];
-  bool _isLoadingLots = true;
+  bool _isLoading = true;
+  Timer? _sessionTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadInitialLots();
+    WidgetsBinding.instance.addObserver(this);
+    _loadLots();
+    _startSessionTimer();
   }
 
-  Future<void> _loadInitialLots() async {
-    List<CarLotModel> loadedList = [];
-    try {
-      final rawContent = await rootBundle.loadString('assets/car_lots.json');
-      final parsedList = jsonDecode(rawContent) as List<dynamic>;
-      loadedList = parsedList
-          .map((lotMap) => CarLotModel.fromJson(lotMap as Map<String, dynamic>))
-          .toList();
-    } catch (_) {
-      loadedList = [
-        CarLotModel(
-          id: 101,
-          title: 'Tesla Model 3 Long Range',
-          price: 9200,
-          isFavorite: false,
-          status: LotStatus.active,
-        ),
-        CarLotModel(
-          id: 102,
-          title: 'BMW M3 Competition G80',
-          price: 18500,
-          isFavorite: false,
-          status: LotStatus.active,
-        ),
-        CarLotModel(
-          id: 103,
-          title: 'Audi RS6 Avant Quattro',
-          price: 24000,
-          isFavorite: false,
-          status: LotStatus.sold,
-        ),
-        CarLotModel(
-          id: 104,
-          title: 'Ford Mustang GT 5.0 V8',
-          price: 11300,
-          isFavorite: false,
-          status: LotStatus.active,
-        ),
-        CarLotModel(
-          id: 105,
-          title: 'Porsche Taycan 4S Electric',
-          price: 29800,
-          isFavorite: false,
-          status: LotStatus.sold,
-        ),
-      ];
-    }
+  void _startSessionTimer() {
+    _sessionTimer?.cancel();
+    _sessionTimer = Timer(const Duration(minutes: 1), _handleSessionTimeout);
+  }
 
+  void _handleSessionTimeout() async {
+    await AppStorageService.clearUserProfile();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    if (lifecycleState == AppLifecycleState.resumed) {
+      _checkSessionFreshness();
+    }
+  }
+
+  Future<void> _checkSessionFreshness() async {
+    final active = await AppStorageService.isSessionActive();
+    if (!active) {
+      _handleSessionTimeout();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _sessionTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadLots() async {
+    final loadedList = await AppStorageService.loadCarLotsList();
     final savedFavorites = await AppStorageService.loadFavoriteIdentities();
     for (final lot in loadedList) {
       if (savedFavorites.contains(lot.id.toString())) {
@@ -179,13 +162,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       }
     }
 
-    setState(() {
-      _carLots = loadedList;
-      _isLoadingLots = false;
-    });
+    if (mounted) {
+      setState(() {
+        _carLots = loadedList;
+        _isLoading = false;
+      });
+    }
   }
 
-  Future<void> _toggleLotFavorite(CarLotModel targetLot) async {
+  Future<void> _toggleFavorite(CarLotModel targetLot) async {
     setState(() {
       targetLot.isFavorite = !targetLot.isFavorite;
     });
@@ -196,53 +181,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         .toList();
 
     await AppStorageService.saveFavoriteIdentities(currentFavorites);
-  }
-
-  void _addLot(CarLotModel newLot) {
-    setState(() {
-      _carLots.add(newLot);
-    });
-  }
-
-  void _deleteLot(int lotIndex) async {
-    final deletedLot = _carLots[lotIndex];
-    setState(() {
-      _carLots.removeAt(lotIndex);
-    });
-
-    if (deletedLot.isFavorite) {
-      final currentFavorites = _carLots
-          .where((lot) => lot.isFavorite)
-          .map((lot) => lot.id.toString())
-          .toList();
-      await AppStorageService.saveFavoriteIdentities(currentFavorites);
-    }
-  }
-
-  void _editLot(CarLotModel modifiedLot) {
-    setState(() {});
-  }
-
-  void _toggleLotStatus(CarLotModel targetLot) {
-    setState(() {
-      targetLot.status = targetLot.status == LotStatus.sold
-          ? LotStatus.active
-          : LotStatus.sold;
-    });
-  }
-
-  void _selectScreen(int screenIndex) {
-    setState(() {
-      _activeScreenIndex = screenIndex;
-    });
+    await AppStorageService.saveCarLotsList(_carLots);
   }
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.findAncestorStateOfType<_CarFinderAppState>();
-    final isDark = appState?._isDarkMode ?? false;
-
-    if (_isLoadingLots) {
+    if (_isLoading) {
       return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(),
@@ -250,66 +194,39 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       );
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final screens = [
-      HomeScreen(
-        username: widget.username,
-        onNavigateToDetails: () => _selectScreen(1),
-      ),
-      CarCatalogScreen(
+      MainCatalogScreen(username: widget.username),
+      SavedListScreen(
         carLots: _carLots,
-        onToggleFavorite: _toggleLotFavorite,
-        onAddLot: _addLot,
-        onDeleteLot: _deleteLot,
-        onEditLot: _editLot,
-        onToggleStatus: _toggleLotStatus,
+        onToggleFavorite: _toggleFavorite,
       ),
-      FavoritesScreen(
-        carLots: _carLots,
-        onToggleFavorite: _toggleLotFavorite,
-      ),
-      ProfileScreen(
-        username: widget.username,
-        isDarkMode: isDark,
-        onThemeChanged: (themeEnabled) {
-          appState?._toggleTheme(themeEnabled);
-        },
-      ),
-    ];
-
-    final screenTitles = [
-      'Головна',
-      'Каталог авто (Copart)',
-      'Обрані лоти (Favorites)',
-      'Профіль користувача',
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(screenTitles[_activeScreenIndex]),
-      ),
       body: screens[_activeScreenIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _activeScreenIndex,
-        selectedItemColor: isDark ? AppColors.secondary : AppColors.primary,
+        backgroundColor: isDark ? Colors.black : Colors.white,
+        selectedItemColor: isDark ? Colors.white : Colors.black,
         unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        onTap: _selectScreen,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        onTap: (selectedTab) {
+          setState(() {
+            _activeScreenIndex = selectedTab;
+          });
+        },
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.directions_car_outlined, size: 28),
+            activeIcon: Icon(Icons.directions_car, size: 28),
             label: 'Головна',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.directions_car),
-            label: 'Каталог',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: 'Обране',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Профіль',
+            icon: Icon(Icons.article_outlined, size: 28),
+            activeIcon: Icon(Icons.article, size: 28),
+            label: 'Збереження',
           ),
         ],
       ),

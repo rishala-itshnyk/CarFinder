@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/app_storage_service.dart';
+import '../services/native_device_service.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_styles.dart';
-import 'register_screen.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String username;
@@ -21,267 +21,250 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _currentAvatarPath = 'assets/images/avatar.png';
   String _profileEmail = '';
+  String _profilePhone = '';
+  String _profileCity = '';
+  String _uploadedDocumentTitle = '';
+  late bool _isDark;
 
   @override
   void initState() {
     super.initState();
+    _isDark = widget.isDarkMode;
     _loadProfileDetails();
+    _syncTheme();
+  }
+
+  Future<void> _syncTheme() async {
+    final savedTheme = await AppStorageService.loadThemeMode();
+    if (mounted && _isDark != savedTheme) {
+      setState(() {
+        _isDark = savedTheme;
+      });
+    }
   }
 
   Future<void> _loadProfileDetails() async {
     final loadedProfile = await AppStorageService.loadUserProfile();
     if (mounted) {
       setState(() {
-        _profileEmail = loadedProfile['email'] ?? '';
+        _profileEmail = loadedProfile['email'] ?? '${widget.username}@carfinder.ua';
+        _profilePhone = loadedProfile['phone'] ?? '+380 67 123 4567';
+        _profileCity = loadedProfile['city'] ?? 'Київ';
       });
     }
   }
 
-  void _openGalleryPicker() {
-    final avatarChoices = [
-      {'title': 'Синій профіль', 'path': 'assets/images/avatar.png'},
-      {'title': 'Автодилер', 'path': 'assets/images/avatar_dealer.png'},
-      {'title': 'Спорткар', 'path': 'assets/images/avatar_porsche.png'},
-      {'title': 'Tesla драйвер', 'path': 'assets/images/avatar_tesla.png'},
-    ];
+  Future<void> _openDocumentPicker() async {
+    final pickedFile = await NativeDeviceService.pickDocumentFromGallery();
+    if (!mounted) return;
+    if (pickedFile != null && pickedFile.isNotEmpty) {
+      setState(() {
+        _uploadedDocumentTitle = pickedFile;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Файл "$pickedFile" обрано з галереї та завантажено!'),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Вибір з галереї скасовано або не обрано файл'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
+  }
 
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (bottomSheetContext) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Оберіть фото профілю з галереї',
-                style: AppStyles.title,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: avatarChoices.map((choice) {
-                  final assetPath = choice['path']!;
-                  final isSelected = _currentAvatarPath == assetPath;
-
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _currentAvatarPath = assetPath;
-                      });
-                      Navigator.pop(bottomSheetContext);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Фото профілю змінено на "${choice['title']}"'),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isSelected ? AppColors.primary : Colors.transparent,
-                              width: 3,
-                            ),
-                          ),
-                          child: CircleAvatar(
-                            radius: 30,
-                            backgroundImage: AssetImage(assetPath),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          choice['title']!,
-                          style: const TextStyle(
-                            fontFamily: 'CarFinderFont',
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-            ],
+  Widget _buildMinimalRow(String label, String contentText) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'CarFinderFont',
+              fontSize: 14,
+              color: _isDark ? Colors.white60 : Colors.black54,
+            ),
           ),
-        );
-      },
+          Text(
+            contentText,
+            style: TextStyle(
+              fontFamily: 'CarFinderFont',
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: _isDark ? Colors.white : Colors.black,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final displayedEmail = _profileEmail.isNotEmpty
-        ? _profileEmail
-        : '${widget.username}@carfinder.ua';
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        children: [
-          Center(
-            child: Stack(
-              children: [
-                GestureDetector(
-                  onTap: _openGalleryPicker,
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundColor: AppColors.primary,
-                    backgroundImage: AssetImage(_currentAvatarPath),
-                  ),
+    return Scaffold(
+      backgroundColor: _isDark ? Colors.black : Colors.white,
+      appBar: AppBar(
+        backgroundColor: _isDark ? Colors.black : Colors.white,
+        foregroundColor: _isDark ? Colors.white : Colors.black,
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Профіль\nкористувача',
+                style: TextStyle(
+                  fontFamily: 'CarFinderFont',
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: _isDark ? Colors.white : Colors.black,
+                  height: 1.2,
                 ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: _openGalleryPicker,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: AppColors.secondary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt,
-                        size: 20,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            widget.username,
-            style: AppStyles.title,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            displayedEmail,
-            style: AppStyles.subtitle,
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              'Учасник торгів Copart / Автодилер',
-              style: TextStyle(
-                fontFamily: 'CarFinderFont',
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
               ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                SwitchListTile(
-                  secondary: Icon(
-                    widget.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                    color: widget.isDarkMode ? AppColors.secondary : AppColors.primary,
-                  ),
-                  title: const Text('Темна тема', style: AppStyles.body),
-                  subtitle: Text(
-                    widget.isDarkMode ? 'Нічний режим увімкнено' : 'Денний режим увімкнено',
-                    style: AppStyles.subtitle,
-                  ),
-                  value: widget.isDarkMode,
-                  onChanged: (themeEnabled) {
-                    widget.onThemeChanged(themeEnabled);
-                  },
+              const SizedBox(height: 8),
+              Text(
+                widget.username,
+                style: TextStyle(
+                  fontFamily: 'CarFinderFont',
+                  fontSize: 16,
+                  color: _isDark ? Colors.white : Colors.black,
+                  fontWeight: FontWeight.w600,
                 ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.photo_library_outlined, color: AppColors.primary),
-                  title: const Text('Змінити фото з галереї', style: AppStyles.body),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _openGalleryPicker,
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: Image.asset(
-                    'assets/icons/profile.png',
-                    width: 24,
-                    height: 24,
-                  ),
-                  title: const Text('Мої ставки на аукціоні', style: AppStyles.body),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {},
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.notifications_none, color: AppColors.primary),
-                  title: const Text('Сповіщення про лоти', style: AppStyles.body),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {},
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.security_outlined, color: AppColors.primary),
-                  title: const Text('Безпека акаунту', style: AppStyles.body),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {},
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
               ),
-            ),
-            onPressed: () async {
-              await AppStorageService.clearUserProfile();
-              if (!context.mounted) return;
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (logoutContext) => const RegisterScreen(),
+              Text(
+                _profileEmail,
+                style: TextStyle(
+                  fontFamily: 'CarFinderFont',
+                  fontSize: 13,
+                  color: _isDark ? Colors.white60 : Colors.black54,
                 ),
-              );
-            },
-            icon: const Icon(Icons.logout),
-            label: const Text('Вийти з профілю', style: AppStyles.button),
+              ),
+              const SizedBox(height: 28),
+              _buildMinimalRow('Телефон', _profilePhone),
+              Divider(color: _isDark ? Colors.white12 : Colors.black12, height: 1),
+              _buildMinimalRow('Місто / Регіон', _profileCity),
+              Divider(color: _isDark ? Colors.white12 : Colors.black12, height: 1),
+              _buildMinimalRow('Підписка', 'PRO активна до 31.12.2026'),
+              Divider(color: _isDark ? Colors.white12 : Colors.black12, height: 1),
+              _buildMinimalRow(
+                'Верифікація',
+                _uploadedDocumentTitle.isNotEmpty ? 'Перевіряється' : 'Потрібні документи',
+              ),
+              Divider(color: _isDark ? Colors.white12 : Colors.black12, height: 1),
+              InkWell(
+                onTap: _openDocumentPicker,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Завантажити фото документів',
+                            style: TextStyle(
+                              fontFamily: 'CarFinderFont',
+                              fontSize: 14,
+                              color: _isDark ? Colors.white : Colors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _uploadedDocumentTitle.isNotEmpty
+                                ? 'Обрано: $_uploadedDocumentTitle'
+                                : 'Вибір з галереї телефону',
+                            style: TextStyle(
+                              fontFamily: 'CarFinderFont',
+                              fontSize: 12,
+                              color: _uploadedDocumentTitle.isNotEmpty
+                                  ? AppColors.success
+                                  : (_isDark ? Colors.white38 : Colors.black45),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 14,
+                        color: _isDark ? Colors.white38 : Colors.black38,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Divider(color: _isDark ? Colors.white12 : Colors.black12, height: 1),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  'Темна тема',
+                  style: TextStyle(
+                    fontFamily: 'CarFinderFont',
+                    color: _isDark ? Colors.white : Colors.black,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: Text(
+                  _isDark ? 'Увімкнено чорний стиль' : 'Увімкнено світлий стиль',
+                  style: TextStyle(
+                    color: _isDark ? Colors.white60 : Colors.black54,
+                    fontSize: 12,
+                  ),
+                ),
+                value: _isDark,
+                activeColor: AppColors.copartBlue,
+                onChanged: (themeEnabled) async {
+                  setState(() {
+                    _isDark = themeEnabled;
+                  });
+                  widget.onThemeChanged(themeEnabled);
+                  await AppStorageService.saveThemeMode(themeEnabled);
+                },
+              ),
+              const SizedBox(height: 48),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isDark ? Colors.white : Colors.black,
+                  foregroundColor: _isDark ? Colors.black : Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () async {
+                  await AppStorageService.clearUserProfile();
+                  if (!context.mounted) return;
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    (route) => false,
+                  );
+                },
+                child: const Text(
+                  'Вийти з акаунту',
+                  style: TextStyle(
+                    fontFamily: 'CarFinderFont',
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
